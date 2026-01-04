@@ -60,13 +60,13 @@ class Token:
 # COMPILER DIAGNOSTICS
 @dataclass
 class CompileError:
-    code: str                 # e.g., "LEX001", "SYN001"
-    message: str              # human-friendly error
+    code: str                
+    message: str              
     index: int
     line: int
     column: int
     token_value: str = ""
-    context: str = ""         # optional: short input snippet
+    context: str = ""     
 
     def format(self) -> str:
         loc = f"line {self.line}, col {self.column} (idx {self.index})"
@@ -109,8 +109,6 @@ class ErrorReporter:
             print("  " + e.format())
             if e.context:
                 print(f"      context: {e.context}")
-
-
 
 #character mapping
 class JavaneseChars:
@@ -459,8 +457,6 @@ class Parser:
             wrapper = ASTNode(ASTNodeType.AKSARA_GROUP, "", [group])
             wrapper.value = self.linearize(wrapper)
             return wrapper
-
-        # Shouldn't happen if caller checks start tokens, but keep safe
         self.error("SYN011", "Invalid start of AKSARA_GROUP", self.current_token)
         return None
     
@@ -492,7 +488,6 @@ class Parser:
           - if token is VOWEL: parse_vowel_syllable()
           - otherwise: emit syntax errors (recovery)
         """
-
         # ✅ Valid syllable starters
         if self.current_token.type == TokenType.CONSONANT:
             return self.parse_consonant_group()
@@ -501,13 +496,13 @@ class Parser:
             syllable_text = self.parse_vowel_syllable()
             return ASTNode(ASTNodeType.SYLLABLE, syllable_text)
 
-        # ❌ PASANGAN cannot start a syllable
+        # PASANGAN cannot start a syllable
         # PASANGAN errors are already reported by OrthographyValidator (ORT007)
         if self.current_token.type == TokenType.PASANGAN:
             self.advance()
             return None
 
-        # ❌ Diacritics / pangkon without base consonant
+        # Diacritics / pangkon without base consonant
         # These are already handled by parse_sentence() and OrthographyValidator
         # Just skip them to continue parsing
         if self.current_token.type in [
@@ -531,7 +526,7 @@ class Parser:
         handled at SENTENCE level (recovery), not consumed as part of WORD.
         """
         word_node = ASTNode(ASTNodeType.WORD, "")
-
+      
         # Must have at least one AKSARA_GROUP
         if not self.is_aksara_group_start(self.current_token):
             self.error("SYN010", "WORD must start with CONSONANT or VOWEL", self.current_token)
@@ -542,10 +537,6 @@ class Parser:
             if group_node is None:
                 continue
             word_node.children.append(group_node)
-            # word_node.value will be filled later by a "linearize" pass
-            # but if you want immediate string, you can do: word_node.value += self.linearize(group_node)
-
-            # stop if boundary reached
             if self.current_token.type in (TokenType.SPACE, TokenType.PUNCTUATION, TokenType.EOF):
                 break
 
@@ -580,18 +571,12 @@ class Parser:
                 self.eat(TokenType.SPACE)
 
             elif self.current_token.type == TokenType.PASANGAN:
-                # PASANGAN errors are already reported by OrthographyValidator (ORT007)
-                # Just skip them to continue parsing
                 self.advance()
 
             elif self.current_token.type in (TokenType.VOCAL_DIACRITIC, TokenType.CONSONANT_DIACRITIC, TokenType.PANGKON):
-                # Diacritic errors are already reported by OrthographyValidator (ORT001, ORT002, etc.)
-                # Just skip them to continue parsing
                 self.advance()
 
             elif self.current_token.type == TokenType.UNKNOWN:
-                # UNKNOWN tokens are already reported by OrthographyValidator
-                # Just skip them to continue parsing
                 self.advance()
 
             else:
@@ -691,8 +676,6 @@ class Parser:
                 program_node.children.append(sentence)
                 program_node.value += sentence.value
             elif self.current_token.type == TokenType.PASANGAN:
-                # PASANGAN errors are already reported by OrthographyValidator (ORT007)
-                # Just skip them to continue parsing
                 self.advance()
             else:
                 self.error("SYN000", "Unexpected token at program level", self.current_token)
@@ -701,7 +684,7 @@ class Parser:
         if self.debug:
             print(f"[PARSER] AST built: {program_node}")
 
-        # ✅ FINALIZE PROGRAM VALUE FROM AST (grammar-aligned)
+        # FINALIZE PROGRAM VALUE FROM AST (grammar-aligned)
         program_node.value = self.linearize(program_node)
 
         return program_node
@@ -724,7 +707,7 @@ class OrthographyValidator:
         have_base = False
         seen_vowel = False
         seen_pangkon = False
-        seen_final = False  # consonant diacritic like ꦁ ꦂ ꦃ
+        seen_final = False
 
         while True:
             tok = lexer.get_next_token()
@@ -747,7 +730,6 @@ class OrthographyValidator:
                 seen_final = False
                 continue
 
-            # ✅ PASANGAN handling (ADD HERE)
             if tok.type == TokenType.PASANGAN:
                 # PASANGAN must follow a base consonant
                 if not have_base:
@@ -756,7 +738,6 @@ class OrthographyValidator:
                         "PASANGAN must follow a base consonant",
                         tok
                     )
-                # PASANGAN extends the current consonant cluster
                 continue
 
             if tok.type == TokenType.VOWEL:
